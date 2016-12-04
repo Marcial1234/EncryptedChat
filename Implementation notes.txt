@@ -1,0 +1,50 @@
+
+
+Draft Ideas:
+128 bits => 64 chars?
+max 1024 long ? => pads?
+
+Have an allowed list of MAC Address of people that want to talk to each other
+
+Have a AES encrypted message, and the key sent to the each other
+with a character in front that determines the number of 
+
+Whenever the message stops making sense it's when the message stops.
+
+Have a python program that talks to the server? => Figure this out
+
+Have a python program that acts as 'clients' with encrypt/decrypt
+		Server's just a prograpator of one to many
+
+
+*Still look up how bind the key with only two client*
+*might end up being better than the approach we came up with*
+*having both will be better, although pure AES would be mostly server based*
+
+
+In summary (as of now):
+	Clients send 'messages' (encrypted or not)
+	Server deals with everything else
+	Logged Clients get back unencrypted messages
+
+
+	Crypto part:
+		Encryption:
+			Message is padded up to a certain number of characters (max length) with random text
+			You create a one time AES key
+			You encrypt the Message using AES and the above key
+			You create a random character (a-z, {|}~) that maps to 0-28 via ord([actual char]) - 97
+			You pass the random character thru one of the base generators for 29 (below) that return the step/increment value
+			You scramble the Key within the text in gaps of getoffset(randchar)
+			randchar goes in the front of the ciphertext
+		Decrypt:
+			Delete first char, and pass it thru getoffset. Use result to build key and message
+			Decrypt.
+
+Bases for generators of up to 29:
+2, 3, 8, 10, 11, 14, 15, 18, 19, 21, 26, 27
+Up to 23:
+5, 7, 10, 11, 14, 15, 17, 19, 20, 21,
+
+Client code talking to server:
+https://neerajkhandelwal.wordpress.com/2012/02/16/socket-programming-handling-multiclients/
