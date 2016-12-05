@@ -1,4 +1,4 @@
-# !/usr/bin/python
+#!/usr/bin/python
 # test this line if you're in Mac/Linux
 
 import os, sys, socket, time
@@ -9,6 +9,9 @@ from uuid import getnode as get_mac
 # from Crypto.Cipher import AES
 # I'm having issues having issues installing the AES package in UF's computers
 # trying alternatives, like M2Crypto or open sourced vanilla AES implementations
+
+# i wanted to use 67775/1 for something i think
+
 
 HOST = ''    # All available interfaces
 PORT = 52725 # Arbitrary port
