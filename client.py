@@ -1,20 +1,29 @@
 #!/usr/bin/python
 import os, sys, socket, time
-from random import randint
+from dependencies import *
+from random import randint, sample
 from socket import *
+
+# need to implement AES key with a fixes length soon
+# !!
+
+set_size = 928
+# 29*32 (key length)
+# arbitrary
+
+# GET META GENERATOR CODE
 
 # Bases for generators of up to 29:
 # 2, 3, 8, 10, 11, 14, 15, 18, 19, 21, 26, 27
-# Up to 23:
-# 5, 7, 10, 11, 14, 15, 17, 19, 20, 21,
 def get_offset(n, base=19):
     return base**n % base
 
-# returns an 'n' sized string to be appened to plaintext
+# returns an 'n' sized string to be appened to ciphertext
 def pad(n):
     # Explination: this is a list comprehension.
     # The loop is ran, and each element inside is what is returned by what's before 'for'
-    return [chr(randint(0,28)+97) for x in xrange(n)]
+    ## Code => padding can be upper and lower case
+    return [chr(randint(0,28) + sample([65,97],1)[0]) for x in xrange(n)]
 
 # Scrambles key and plaintext by the offset
 # Returns: list of chars
@@ -24,7 +33,7 @@ def scramble(plaintext, key, offset):
         partition = plaintext[index:index+offset]
         ciphertext.extend(partition)
         ciphertext.extend(key[index/offset])
-        # Debug Code
+        ## Debug Code
         # print index, index+offset, oink
         # print key[index/offset]
     # Index still on the scope
@@ -32,20 +41,21 @@ def scramble(plaintext, key, offset):
     return ciphertext
 
 # Unscrambles key and plaintext by the offset
-# Returns: [list of chars, list of chars]
-def unscramble(ciphertext, offset):
-    plaintext = []
+# Returns: [list of chars, list of chars] => ciphertext, key
+def unscramble(merged_ciphertext, offset):
+    end = len(merged_ciphertext)-offset+1
+    ciphertext = []
     key = []
 
-    for index in xrange(0, len(ciphertext)-offset+1, offset+1):
-        plaintext.extend(message[index:index+offset])
+    for index in xrange(0, end, offset+1):
+        ciphertext.extend(message[index:index+offset]) # lists slicing uses [) format
         key.append(message[index+offset])
-        # Debug Code
+        ## Debug Code
         # print index, index+offset, message[index:index+offset], message[index+offset]
 
     # Index still on the scope
-    plaintext.extend(message[index+offset+1:])
-    [plaintext, key]
+    ciphertext.extend(message[index+offset+1:])
+    [ciphertext, key]
 
 #   Crypto part:
 #       Encryption:
@@ -54,24 +64,27 @@ def unscramble(ciphertext, offset):
 #           You encrypt the Message using AES and the above key
 #           You create a random character (a-z, {|}~) that maps to 0-28 via ord([actual char]) - 97
 #           You pass the random character thru one of the base generators for 29 (below) that return the step/increment value
-#           You scramble the Key within the text in gaps of getoffset(randchar)
-#           randchar goes in the front of the ciphertext
+#           You scramble the Key within the text in gaps of getoffset(random_char)
+#           random_char goes in the front of the ciphertext
 def encrypt(message):
     # messagee is turned into a list
     plaintext = message.split()
     ciphertext = []
 
-    # Add Random Padding
-    # set_size NOT SET, just placeholder
-    plaintext.extend(pad(set_size-len(plaintext)))
-
     # this turns plaintext into a string
     # plaintext = "".join(plaintext)
+
+    # generate random char
+    random_char = chr(randint(0,28)+97)
 
     # everything below doesn't work yet, just a placeholder
     key = AES.generate_key(128)
     # Scrambled Eggs Time
-    cyphertext = "".join(scramble(plaintext, key, offset))
+    cyphertext = [random_char] + "".join(scramble(plaintext, key, offset))
+    # getting rid of "="
+    cyphertext = [x for x in ciphertext if x != "="]
+    # Add Random Padding
+    cyphertext.extend(pad(set_size-len(cyphertext)))
     output = AES.encrypt(cyphertext, key)
     return output
 
@@ -80,7 +93,8 @@ def encrypt(message):
 # AES Decrypt
 def decrypt(message):
     # if the message received it's not the specific size/length, return and print nothing
-    if len(message) != size:
+    # this might not be needed given the 
+    if len(message) > max_size:
         return ""
     # IS IT QUARANTEED THAT THIS WILL HAPPEN ALL THE TIME??
     # NEED TO TEST AES RETURN SIZE GIVEN MANY INPUTS
@@ -94,7 +108,7 @@ def decrypt(message):
     # will be turned into strings later
 
     # Unscramble, not done
-    plaintext, key = unscramble(merged_ciphertext, offset)
+    cyphertext, key = unscramble(merged_ciphertext, offset)
 
     # this doesn't work yet, just a placeholder
     plaintext = AES.decrypt(cyphertext, key)
@@ -114,10 +128,15 @@ def main():
      
     # Infinite loop to keep client running.
     while True:
-        data = sock.recv(1024)
-        print data
-        sock.send('HI! I am client.')
-     
+        data = sock.recv(max_size)
+        print decrypt(data)
+        sock.send(encrypt(raw_input()))
+
+    # try:
+    #   print raw_input()
+    # except KeyboardInterrupt:
+    #   print "oink"
+
     sock.close()
 
 if __name__ == '__main__':
