@@ -1,8 +1,8 @@
 #!/usr/bin/python
 # test this line if you're in Mac/Linux
 
+import os, sys, time, thread
 from dependencies import *
-import os, sys, time #, socket
 from socket import *
 
 # pycrypto Package
@@ -16,16 +16,25 @@ all_threads = []
 # Function for handling connections. This will be used to create threads
 def clientthread(client):
     # Sending message to connected client
-    client.send("Welcome to the server. Type something and hit enter\n") # send only takes string
-    client.send("What's your name?\n") # send only takes string
-    name = client.recv(1024)
+    client.send("Welcome to the server")
+    client.send("What's your name?")
 
     # infinite loop so that function and thread does not terminate
-    while True:
-        # Receiving from client
-        data = client.recv(max_size)
-        print name + " sent:\n" + data 
-        client.sendall(data)
+    try:
+        name = client.recv(1024)
+        # prior, or something else. else it dies first hand
+        data = " "
+        while data != "":
+            client.send("What's your message?")
+            # Receiving from client
+            data = client.recv(max_size)
+            if data != "":
+                print name + " sent:\n" + data
+                client.sendall(data)
+    except error:
+        pass
+    except KeyboardInterrupt:
+        pass
     
     client.close()
 
@@ -65,13 +74,17 @@ def main():
 
     # Stays Connected undefinately
     # still figuring out to how gracefully exit... (with Ctrl + C, or equivalent)
-    while True:
-        # Blocking code
-        client, (ip,port) = server.accept()
-        start_new_thread(clientthread, (client,))
-        # now to send everyone's stuff
-        print "Connected with " + ip + ":" + str(port)
+    try:
+        while True:
+            # Blocking code
+            client, (ip,port) = server.accept()
+            thread.start_new_thread(clientthread, (client,))
+            # now to send everyone's stuff
+            print "Connected with " + ip + ":" + str(port)
+    except KeyboardInterrupt:
+        pass
 
+    print "\nGoodbye!"
     server.close()
 
 if __name__ == "__main__":
