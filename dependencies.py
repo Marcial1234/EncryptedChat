@@ -1,6 +1,3 @@
-# Client and Server's common variables
-max_size = 1000
-
 ## Meta Generator code
 # max = 13
 # oink = []

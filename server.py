@@ -1,8 +1,6 @@
 #!/usr/bin/python
-# test this line if you're in Mac/Linux
 
 import os, sys, time, thread
-from dependencies import *
 from socket import *
 
 # pycrypto Package
@@ -15,22 +13,26 @@ all_threads = []
 
 # Function for handling connections. This will be used to create threads
 def clientthread(client):
+    all_threads.append(client)
     # Sending message to connected client
     client.send("Welcome to the server")
     client.send("What's your name?")
+    name = client.recv(1024)
 
     # infinite loop so that function and thread does not terminate
     try:
-        name = client.recv(1024)
         # prior, or something else. else it dies first hand
         data = " "
-        while data != "":
+        while True:
             client.send("What's your message?")
             # Receiving from client
-            data = client.recv(max_size)
-            if data != "":
-                print name + " sent:\n" + data
-                client.sendall(data)
+            data = client.recv(500)
+            print name + " sent:\n" + data
+            client.send(data)
+
+            # so, now that we have this...
+            # figure out multiple sockets
+
     except error:
         pass
     except KeyboardInterrupt:
@@ -38,16 +40,7 @@ def clientthread(client):
     
     client.close()
 
-def main():
-    # MAC Address code
-    # from uuid import getnode as get_mac
-    # addr = str(basic_key)
-    # # this list comp formats the MAC Address from a Long to "XX:XX:.."
-    # addr = ":".join(addr[i:i+2] for i in range(0,12,2))
-    # # send server mac address to client as a test
-    # client.send(addr)
-    # basic_key = get_mac()
-    
+def main():  
     host = "localhost"
     port =  52725 # Arbitrary port
 
@@ -69,7 +62,7 @@ def main():
 
     # Start listening on socket
     # Passed Parameter is # of max connections allowed
-    server.listen(5)
+    server.listen(3)
     print "Socket now listening"
 
     # Stays Connected undefinately

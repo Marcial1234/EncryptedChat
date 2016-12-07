@@ -2,16 +2,12 @@
 
 from random import randint, sample # PRNG
 from Crypto.Cipher import AES
-from dependencies import * # common variables, so far not worth it but w/e
 from Crypto import Random # Key generator
 from socket import *
-# from math import ceil
 import os, sys, time
 
 entropy = 23
-# above*len(key) 23*16
-set_size = 368
-# arbitrary
+# arbitrary prime number with generators
 
 # Bases for generators of up to 23:
 # [5, 7, 10, 11, 14, 15, 17, 19, 20, 21]
@@ -29,16 +25,21 @@ def pad(n):
 # Returns: list of chars
 def scramble(plaintext, key, offset):
     index = 0
+    end = 16*offset
     ciphertext = []
-    for index in xrange(0, len(plaintext), offset):
+
+    for index in xrange(0, end, offset):
         partition = plaintext[index:index+offset]
         ciphertext.extend(partition)
         ciphertext.extend(key[index/offset])
         ## Debug Code
-        # print index, index+offset, oink
+        # print index, index+offset, partition
         # print key[index/offset]
 
-    ciphertext.extend(plaintext[index*(offset+1):])
+    # issue might be here
+    # print "index, offset:", index, offset
+    # print plaintext[(index-1)*(offset):]
+    ciphertext.extend(plaintext[(index-1)*(offset):])
     return ciphertext
 
 # Unscrambles key and plaintext by the offset
@@ -46,18 +47,21 @@ def scramble(plaintext, key, offset):
 def unscramble(merged_ciphertext, offset):
     # Contraction
     m_c = merged_ciphertext
-    end = len(m_c)-offset+1
+    end = (offset+1)*16+1
     ciphertext = []
     index = 0
     key = []
 
-    for index in xrange(0, end, offset+1):
+    while len(key) < 16 and index < end:
         ciphertext.extend(m_c[index:index+offset]) # lists slicing uses [) format
         key.append(m_c[index+offset])
         ## Debug Code
         # print index, index+offset, m_c[index:index+offset], m_c[index+offset]
+        index += offset + 1
 
     ciphertext.extend(m_c[index+offset+1:])
+    # print "index: " + str(index)
+    # print m_c[index+offset+1:]
     return [ciphertext, key]
 
 #   Crypto part:
@@ -75,32 +79,31 @@ def encrypt(plaintext):
     random_char = chr(random_int+97)
     offset = get_offset(random_int)
 
-    # need to pad with all 0s? you can go for it
+    # adding padding for spacing, and AES formatting
+    needs = 16*offset - len(plaintext)
+    if needs > 0:
+        padding = pad(needs)
+        plaintext += "".join(padding)
+    
+    # if entire text is greater than offset still pad it so it's a mult of 16
     needs = 16 - len(plaintext)%16
-    plaintext = plaintext.split()
-    plaintext.extend(pad(needs))
-    plaintext = "".join(plaintext)
+    if needs != 16:
+        padding = pad(needs)
+        plaintext += "".join(padding)
+    # print plaintext
     
     # Generate Random Key, IV is just the reverse
     key = Random.new().read(16)
     iv = key[::-1]
 
-    # Using AES-128 CBC (Cipher-Block Chaining)
+    # Using AES-128 CBC
     # http://pythonhosted.org/pycrypto/Crypto.Cipher.AES-module.html#MODE_ECB
     encryptor = AES.new(key, AES.MODE_CBC, iv)
     ciphertext = encryptor.encrypt(plaintext)
 
-    # getting rid of "="
-    ciphertext = [char for char in ciphertext if char != "="]
-
-    # Add Random Padding for up to the next Block
-    needs = offset*16-len(ciphertext)
-    ciphertext.extend(pad(needs))
-
     # Scrambled Eggs time
     ciphertext = "".join([random_char] + scramble(ciphertext, key, offset))
-    # ciphertext = [random_char] + ciphertext
-
+    # print ciphertext
     return ciphertext
 
 # Decrypt:
@@ -118,13 +121,14 @@ def decrypt(message):
 
     # Unscramble
     ciphertext, key = unscramble(merged_ciphertext, offset)
+    # print len(ciphertext)
     key = "".join(key)
+    # print len(key), key
     ciphertext = "".join(ciphertext)
-
 
     # Decrypt, AES-128 CBC
     encryptor = AES.new(key, AES.MODE_CBC, key[::-1])
-    plaintext = encryptor.encrypt(ciphertext)
+    plaintext = encryptor.decrypt(ciphertext)
 
     return plaintext
 
@@ -133,8 +137,6 @@ def decrypt(message):
 def main():
     host = 'localhost'
     port = 52725
-    # port = 52000
-    # port = 65535/7
      
     sock = socket()
     # Connecting to socket
@@ -149,21 +151,9 @@ def main():
     while True:
         print sock.recv(50) # Message?
         message = encrypt(raw_input())
-        sock.send()
-
-        data = sock.recv(max_size*2)
-        # wait for next if message received it's not the specific length
-        if len(data) > max_size or data == message:
-            sock.recv(50)
-            continue
-            # sock.send(encrypt(raw_input()))
-
+        sock.send(message)
+        data = sock.recv(750)
         print decrypt(data)
-
-    # try:
-    #   print raw_input()
-    # except KeyboardInterrupt:
-    #   print "oink"
 
     sock.close()
 
