@@ -18,8 +18,8 @@ def get_offset(n, base=19):
 def pad(n):
     # Explanation: this is a list comprehension.
     # The loop is ran, and each element inside is what is returned by what's before 'for'
-    ## Code => padding can be upper and lower case
-    return [chr(randint(0,22) + sample([64,96],1)[0]) for x in xrange(n)]
+    ## Code => padding 'n' [a-z, A-Z] characters to message
+    return [chr(randint(0,25) + sample([65,97],1)[0]) for x in xrange(n)]
 
 # Scrambles key and plaintext by the offset
 # Returns: list of chars
@@ -32,13 +32,7 @@ def scramble(plaintext, key, offset):
         partition = plaintext[index:index+offset]
         ciphertext.extend(partition)
         ciphertext.extend(key[index/offset])
-        ## Debug Code
-        # print index, index+offset, partition
-        # print key[index/offset]
 
-    # issue might be here
-    # print "index, offset:", index, offset
-    # print plaintext[(index-1)*(offset):]
     ciphertext.extend(plaintext[(index-1)*(offset):])
     return ciphertext
 
@@ -55,13 +49,9 @@ def unscramble(merged_ciphertext, offset):
     while len(key) < 16 and index < end:
         ciphertext.extend(m_c[index:index+offset]) # lists slicing uses [) format
         key.append(m_c[index+offset])
-        ## Debug Code
-        # print index, index+offset, m_c[index:index+offset], m_c[index+offset]
         index += offset + 1
 
     ciphertext.extend(m_c[index+offset+1:])
-    # print "index: " + str(index)
-    # print m_c[index+offset+1:]
     return [ciphertext, key]
 
 #   Crypto part:
@@ -69,13 +59,13 @@ def unscramble(merged_ciphertext, offset):
 #           You create a one time AES key
 #           You encrypt the Message using AES and the above key
 #           Encrypted message is padded up to a certain number of characters (max length) with random text
-#           You create a random character (a-z, {|}~) that maps to 0-28 via ord([actual char]) - 97
-#           You pass the random character thru one of the base generators for 29 (below) that returns the step value
+#           You create a random character (a-w) that maps to 0-22 via ord([actual char]) - 97
+#           You pass the random character thru one of the base generators for 23 (below) that returns the step value
 #           You scramble the Key within the text in gaps of get_offset(random_char)
 #           random_char goes in the front of the ciphertext
 def encrypt(plaintext):
-    # generate random char
-    random_int = randint(0,22)
+    # generate random_char
+    random_int = randint(0,entropy-1)
     random_char = chr(random_int+97)
     offset = get_offset(random_int)
 
@@ -85,34 +75,31 @@ def encrypt(plaintext):
         padding = pad(needs)
         plaintext += "".join(padding)
     
-    # if entire text is greater than offset still pad it so it's a mult of 16
+    # only pad the rest of the message if its length is not a multiple of 16
     needs = 16 - len(plaintext)%16
     if needs != 16:
         padding = pad(needs)
         plaintext += "".join(padding)
-    # print plaintext
     
-    # Generate Random Key, IV is just the reverse
+    # Generate Random Key, IV is just the reverse of the key
     key = Random.new().read(16)
     iv = key[::-1]
 
     # Using AES-128 CBC
+    # source:
     # http://pythonhosted.org/pycrypto/Crypto.Cipher.AES-module.html#MODE_ECB
     encryptor = AES.new(key, AES.MODE_CBC, iv)
     ciphertext = encryptor.encrypt(plaintext)
 
     # Scrambled Eggs time
     ciphertext = "".join([random_char] + scramble(ciphertext, key, offset))
-    # print ciphertext
     return ciphertext
 
 # Decrypt:
 # Delete first char, and pass it thru get_offset. 
 # Use result to build key and message
 def decrypt(message):
-    if len(message) == 0:
-        return ""
-
+    # mapping random_char to (0-23) or (0-entropy/prime_number-1)
     random_int = ord(message[0]) - 97
     offset = get_offset(random_int)
 
@@ -121,19 +108,16 @@ def decrypt(message):
 
     # Unscramble
     ciphertext, key = unscramble(merged_ciphertext, offset)
-    # print len(ciphertext)
     key = "".join(key)
-    # print len(key), key
+    iv = key[::-1] # reseve of key
     ciphertext = "".join(ciphertext)
 
     # Decrypt, AES-128 CBC
-    encryptor = AES.new(key, AES.MODE_CBC, key[::-1])
+    encryptor = AES.new(key, AES.MODE_CBC, iv)
     plaintext = encryptor.decrypt(ciphertext)
 
     return plaintext
 
-# Client code talking to server:
-# https://neerajkhandelwal.wordpress.com/2012/02/16/socket-programming-handling-multiclients/
 def main():
     host = 'localhost'
     port = 52725
@@ -143,17 +127,17 @@ def main():
     sock.connect((host, port))
      
     # Sending over Username
-    print sock.recv(50) # Greetings
-    print sock.recv(50) # Name?
-    sock.send(raw_input()) # Name
+    print "server=> " + sock.recv(50) # Greetings
+    print "server=> " + sock.recv(50) # Name Prompt
+    sock.send(raw_input()) # Name Input
 
-    # Infinite loop to keep client running.
+    # Infinite loop to keep client running
     while True:
-        print sock.recv(50) # Message?
-        message = encrypt(raw_input())
-        sock.send(message)
-        data = sock.recv(750)
-        print decrypt(data)
+        print "server=> " + sock.recv(50) # Message Prompt
+        message = encrypt(raw_input()) # Encrypt Message
+        sock.send(message) # Send encrypted message
+        data = sock.recv(750) # Receive Output from the server
+        print "Decrypted message: \n" + decrypt(data) # Print decrypted message
 
     sock.close()
 

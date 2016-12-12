@@ -13,16 +13,17 @@ def main():
     sock.connect((host, port))
 
     # Sending over Username
-    print sock.recv(50) # Greetings
-    print "server=> " + sock.recv(50) # Name?
-    sock.send(raw_input()) # Name
+    print "server=> " + sock.recv(50) # Greetings
+    print "server=> " + sock.recv(50) # Name Prompt
+    sock.send(raw_input()) # Name Input
 
-    # Infinite loop to keep client running.
+    # Infinite loop to keep client running
     while True:
-        print "server=> " + sock.recv(50) # Message?
-        sock.send(raw_input())
-        data = sock.recv(750)
-        print "server=> " + data
+        print "server=> " + sock.recv(50) # Message Prompt
+        message = raw_input() # Get Message
+        sock.send(message) # Send message
+        data = sock.recv(750) # Receive Output from the server
+        print data # Print  message
 
     sock.close()
 
